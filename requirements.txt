@@ -1,0 +1,15 @@
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+torch==2.5.1
+numpy==1.23.5
+opencv-python==4.11.0.86
+timm==0.9.12
+tensorboard==2.10.0
+scipy==1.9.1
+einops==0.8.1
+diffusers>=0.33.0
+datasets
+huggingface_hub[cli]
+wandb
+hf_transfer
+git+https://github.com/LTH14/torch-fidelity.git@master#egg=torch-fidelity

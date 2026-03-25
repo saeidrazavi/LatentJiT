@@ -2,6 +2,8 @@
 
 This repository adapts [JiT (Just image Transformer)](https://arxiv.org/abs/2511.13720) from pixel-space diffusion to **latent-space diffusion**, using pre-computed latent features from [REPA-E](https://github.com/thu-ml/REPA)'s VA-VAE.
 
+![LatentJiT generated samples](assets/image.png)
+
 Instead of training on raw 256×256 ImageNet pixels, LatentJiT trains on compact **16×16×32** latent representations pre-extracted by VA-VAE, and decodes generated latents back to pixels using the same pretrained VA-VAE decoder at evaluation time.
 
 ## Key Modifications from Original JiT
@@ -11,6 +13,14 @@ Instead of training on raw 256×256 ImageNet pixels, LatentJiT trains on compact
 - **VA-VAE decoder**: The pretrained [REPA-E/e2e-vavae-hf](https://huggingface.co/REPA-E/e2e-vavae-hf) VAE is used only at evaluation time for latent → pixel decoding.
 - **Per-channel normalization**: Latents are normalized using mean/std statistics shipped in the VA-VAE config (`latents_mean`, `latents_std`).
 - **Architecture**: `LatentEmbed` (Linear 32→D) replaces `PatchEmbed`, `FinalLayer` outputs 32 channels, and unpatchify is a simple reshape. The DiT transformer core is unchanged.
+
+## Results
+
+| Model | Epochs | Sampler | Steps | CFG | EMA Decay | FID-50K ↓ |
+|-------|--------|---------|-------|-----|-----------|-----------|
+| LatentJiT-B | 10 | Heun | 50 | 1.5 | 0.999 | **6.44** |
+
+> Trained on 2× NVIDIA H200 with `blr=3e-4`, `batch_size=512`, cosine LR schedule, `weight_decay=0.05`, `use_mean_only`.
 
 ## Model Variants
 
@@ -25,7 +35,7 @@ Instead of training on raw 256×256 ImageNet pixels, LatentJiT trains on compact
 
 ```bash
 # Clone the repository
-git clone https://github.com/G-REPA/LatentJiT.git
+git clone https://github.com/saeidrazavi/LatentJiT.git
 cd latentjit
 
 # Install uv project manager (if you don't already have it)
@@ -182,6 +192,29 @@ uv run main_jit.py \
 | `--sampling_method` | `euler` | Sampling method (`euler` or `heun`) |
 | `--num_sampling_steps` | `50` | Number of denoising steps |
 | `--num_images` | `50000` | Number of images to generate for FID |
+
+## Reproducing the FID 6.44 Result
+
+The following configuration was used to achieve FID **6.44** at epoch 10 on LatentJiT-B:
+
+```bash
+torchrun --nproc_per_node=2 main_jit.py \
+    --model LatentJiT-B \
+    --batch_size 512 \
+    --blr 3e-4 \
+    --epochs 100 \
+    --warmup_epochs 2 \
+    --lr_schedule cosine \
+    --weight_decay 0.05 \
+    --cfg 1.5 \
+    --use_mean_only \
+    --dataset_dir /path/to/ImageNet-Latents \
+    --output_dir ./output_latentjit_b \
+    --use_wandb
+```
+
+**Hardware:** 2× NVIDIA H200 (141 GB each)
+**Evaluation:** Heun sampler, 50 steps, CFG=1.5, EMA decay=0.999, 50K images
 
 ## Logging
 
